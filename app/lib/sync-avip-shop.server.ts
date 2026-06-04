@@ -21,7 +21,7 @@ export function missingReadScopes(scopeCsv: string): string[] {
  * session.scope in sqlite is often stale (write-only) after scope upgrades.
  */
 export async function syncAvipShopFromAdmin(request: Request) {
-  const { session, scopes: scopesApi } = await authenticate.admin(request);
+  const { session, scopes: scopesApi, admin } = await authenticate.admin(request);
 
   let grantedCsv = (session.scope ?? "").trim();
   try {
@@ -50,5 +50,6 @@ export async function syncAvipShopFromAdmin(request: Request) {
     shop: session.shop,
     grantedScopes: grantedCsv,
     missingScopes,
+    admin,
   };
 }
