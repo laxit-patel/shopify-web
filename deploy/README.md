@@ -20,7 +20,14 @@ bash scripts/bootstrap-staging-ec2.sh <shopify-elastic-ip>
 # SSH: edit /opt/shopify-web/.env.staging (Partners keys + AVIP_INTERNAL_SIGNAL_SECRET)
 ```
 
-Update **Shopify Partners** → App URL = `https://<sslip-host>` (from tofu output).
+Update **Shopify Partners** (or `shopify app deploy` from repo root):
+
+| Field | Staging value |
+|-------|----------------|
+| App URL | `https://65-2-58-133.sslip.io` |
+| Redirect URLs | `https://65-2-58-133.sslip.io/auth/callback`, `.../auth/exit-iframe` |
+
+**Not** `/api/auth` — this app uses `authPathPrefix: /auth` (see `app/shopify.server.ts`).
 
 ## Every release
 

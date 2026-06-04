@@ -2,7 +2,7 @@
 
 client_id = "398db28ab6e441e3731f7b195a6472b5"
 name = "Avip"
-application_url = "https://shopify.dev/apps/default-app-home"
+application_url = "https://65-2-58-133.sslip.io"
 embedded = true
 handle = "avip"
 
@@ -26,4 +26,7 @@ api_version = "2026-07"
 scopes = "read_fulfillments,read_orders,write_fulfillments,write_orders"
 
 [auth]
-redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+redirect_urls = [
+  "https://65-2-58-133.sslip.io/auth/callback",
+  "https://65-2-58-133.sslip.io/auth/exit-iframe",
+]
