@@ -4,6 +4,7 @@
 !.env.example
 !.env.staging.example
 node_modules
+pnpm-workspace.yaml
 .react-router
 .shopify
 generated
