@@ -18,6 +18,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/build ./build
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/generated ./generated
+COPY --from=build /app/generated ./build/generated
 RUN mkdir -p /data
 ENV DATABASE_URL=file:/data/dev.sqlite
 EXPOSE 3000
