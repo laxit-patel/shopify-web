@@ -2,9 +2,10 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider     = "prisma-client-js"
-  output       = "../generated/shopify-session-client"
-  moduleFormat = "esm"
+  provider      = "prisma-client-js"
+  output        = "../generated/shopify-session-client"
+  moduleFormat  = "esm"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x"]
 }
 
 // Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
