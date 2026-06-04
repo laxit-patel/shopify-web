@@ -1,0 +1,37 @@
+name: Staging deploy
+
+on:
+  push:
+    branches: [main, golang]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+concurrency:
+  group: shopify-staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SHOPIFY_STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER || 'ec2-user' }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          timeout: 60s
+          command_timeout: 45m
+          script_stop: true
+          script: |
+            set -euo pipefail
+            export STAGING_IP="${{ secrets.SHOPIFY_STAGING_HOST }}"
+            export STAGING_PUBLIC_HOST="${{ secrets.SHOPIFY_STAGING_PUBLIC_HOST }}"
+            export CADDY_ACME_EMAIL="${{ secrets.STAGING_CADDY_ACME_EMAIL }}"
+            cd /opt/shopify-web
+            if [[ -n "${{ secrets.SHOPIFY_STAGING_ENV_FILE }}" ]]; then
+              printf '%s\n' "${{ secrets.SHOPIFY_STAGING_ENV_FILE }}" > .env.staging
+              chmod 600 .env.staging
+            fi
+            bash scripts/deploy-staging-remote.sh main

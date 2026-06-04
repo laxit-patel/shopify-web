@@ -1,0 +1,14 @@
+.git
+.env
+.env.*
+!.env.example
+!.env.staging.example
+node_modules
+.react-router
+.shopify
+generated
+prisma/*.sqlite
+prisma/dev.sqlite
+deploy/opentofu/**/.terraform
+**/*.md
+.cursor

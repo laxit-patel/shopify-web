@@ -1,0 +1,6 @@
+aws_region               = "ap-south-1"
+project_name             = "avip-shopify"
+instance_type            = "t4g.small"
+key_name                 = "avip-staging"
+ssh_allow_github_actions = true
+avip_backend_url         = "https://3-111-61-150.sslip.io"

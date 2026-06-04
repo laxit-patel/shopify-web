@@ -1,0 +1,7 @@
+# sslip.io — set STAGING_PUBLIC_HOST in deploy/ec2/caddy.env
+
+{$STAGING_PUBLIC_HOST} {
+	reverse_proxy shopify:3000 {
+		flush_interval -1
+	}
+}

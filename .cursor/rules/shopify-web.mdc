@@ -1,0 +1,12 @@
+---
+description: "shopify-web embedded app — local dev with optional staging AVIP backend."
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# shopify-web
+
+- **Staging backend:** `pnpm dev:staging` sets `AVIP_API_URL` to EC2; UI still uses Shopify CLI tunnel.
+- **Secrets:** `AVIP_INTERNAL_SIGNAL_SECRET` must match `avip` `.env.staging` on EC2 for `/internal/shops/upsert`.
+- **Sessions:** Prisma sqlite locally; AVIP shop data lives on staging Postgres via Go API.
+- Use **shopify-dev-mcp** for Partners API / embedded app docs when enabled.
