@@ -7,7 +7,6 @@ node_modules
 pnpm-workspace.yaml
 .react-router
 .shopify
-generated
 prisma/*.sqlite
 prisma/dev.sqlite
 deploy/opentofu/**/.terraform

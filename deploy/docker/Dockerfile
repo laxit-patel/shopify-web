@@ -7,6 +7,8 @@ COPY . .
 RUN pnpm prisma generate && pnpm build
 
 FROM node:22-bookworm-slim
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
 ENV NODE_ENV=production
