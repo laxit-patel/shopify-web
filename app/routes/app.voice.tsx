@@ -1,42 +1,77 @@
-import type { HeadersFunction } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { MockPreviewBanner } from "../components/MockPreviewBanner";
+import { getAvipPrompt, saveAvipPrompt } from "../lib/avip-api.server";
+import { syncAvipShopFromAdmin } from "../lib/sync-avip-shop.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { shop } = await syncAvipShopFromAdmin(request);
+  const prompt = await getAvipPrompt(shop);
+  return {
+    systemPrompt:
+      prompt?.systemPrompt ??
+      "You are an RTO recovery agent. Speak clearly, ask why delivery failed, and confirm the reason briefly.",
+  };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { shop } = await syncAvipShopFromAdmin(request);
+  const form = await request.formData();
+  const systemPrompt = String(form.get("systemPrompt") ?? "").trim();
+  if (!systemPrompt) return { ok: false, error: "Prompt is required" };
+  return saveAvipPrompt(shop, systemPrompt);
+};
 
 export default function VoicePage() {
+  const { systemPrompt } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
+  const busy = fetcher.state !== "idle";
+
   return (
     <s-page heading="Voice & prompts">
-      <MockPreviewBanner message="Preview — prompt and voice settings will save to AVIP per shop (prompt_profiles)." />
-
       <s-section heading="Recovery agent prompt">
-        <s-text-area
-          label="System instructions"
-          name="systemPrompt"
-          rows={6}
-          value="You are an RTO recovery agent for a Shopify store. Speak clearly in the customer's language. Confirm delivery address, ask why delivery failed, and offer to reschedule. Keep calls under 3 minutes."
-        />
-        <s-stack direction="inline" gap="base">
-          <s-button variant="primary">Save prompt</s-button>
-          <s-button variant="secondary">Reset to default</s-button>
-        </s-stack>
+        <fetcher.Form method="post">
+          <s-text-area
+            label="System instructions"
+            name="systemPrompt"
+            rows={6}
+            value={systemPrompt}
+          />
+          <s-stack direction="inline" gap="base">
+            <s-button
+              type="submit"
+              variant="primary"
+              {...(busy ? { loading: true } : {})}
+            >
+              Save prompt
+            </s-button>
+          </s-stack>
+        </fetcher.Form>
+        {fetcher.data?.ok === false && fetcher.data.error ? (
+          <s-banner tone="critical">
+            <s-paragraph>{fetcher.data.error}</s-paragraph>
+          </s-banner>
+        ) : null}
+        {fetcher.data?.ok ? (
+          <s-banner tone="success">
+            <s-paragraph>Prompt saved — applies to new recovery calls.</s-paragraph>
+          </s-banner>
+        ) : null}
       </s-section>
 
-      <s-section slot="aside" heading="Voice settings">
+      <s-section slot="aside" heading="Voice settings (preview)">
         <s-select label="Default language" name="language">
           <s-option value="hi-IN">Hindi (India)</s-option>
           <s-option value="en-IN">English (India)</s-option>
           <s-option value="ta-IN">Tamil</s-option>
         </s-select>
-        <s-number-field
-          label="Max call duration (minutes)"
-          name="maxDuration"
-          value={30}
-          min={5}
-          max={60}
-        />
-        <s-switch label="Simulation mode (no PSTN)" name="simulation" />
         <s-paragraph color="subdued">
-          When enabled, workflows run without dialing the customer — useful for
-          staging.
+          Language preference is saved under Settings → Preferences when the beta
+          API is deployed.
         </s-paragraph>
       </s-section>
     </s-page>

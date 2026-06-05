@@ -1,14 +1,22 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import type {
+  ActionFunctionArgs,
+  HeadersFunction,
+  LoaderFunctionArgs,
+} from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { MockPreviewBanner } from "../components/MockPreviewBanner";
-import { avipApiBaseUrl } from "../lib/avip-api.server";
+import {
+  avipApiBaseUrl,
+  getAvipPreferences,
+  saveAvipPreferences,
+} from "../lib/avip-api.server";
 import { shopifyReauthInstallUrl } from "../lib/reauth-url.server";
 import { syncAvipShopFromAdmin } from "../lib/sync-avip-shop.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { shop, grantedScopes, missingScopes } =
     await syncAvipShopFromAdmin(request);
+  const preferences = await getAvipPreferences(shop);
   return {
     shop,
     grantedScopes,
@@ -16,7 +24,23 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     avipApiUrl: avipApiBaseUrl(),
     reauthInstallUrl: shopifyReauthInstallUrl(shop),
     reauthorizePath: "/app/reauthorize",
+    preferences: preferences ?? {
+      defaultLanguage: "hi-IN",
+      autoWebhook: true,
+      escalationEmailEnabled: true,
+    },
   };
+};
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { shop } = await syncAvipShopFromAdmin(request);
+  const form = await request.formData();
+  const result = await saveAvipPreferences(shop, {
+    defaultLanguage: String(form.get("defaultLanguage") ?? "hi-IN"),
+    autoWebhook: form.get("autoWebhook") === "on",
+    escalationEmailEnabled: form.get("escalationEmailEnabled") === "on",
+  });
+  return result;
 };
 
 export default function SettingsPage() {
@@ -27,7 +51,10 @@ export default function SettingsPage() {
     avipApiUrl,
     reauthInstallUrl,
     reauthorizePath,
+    preferences,
   } = useLoaderData<typeof loader>();
+  const fetcher = useFetcher<typeof action>();
+  const busy = fetcher.state !== "idle";
 
   return (
     <s-page heading="Settings">
@@ -62,21 +89,44 @@ export default function SettingsPage() {
         </s-paragraph>
       </s-section>
 
-      <s-section heading="Preferences (preview)">
-        <MockPreviewBanner message="These controls are layout-only — values are not saved yet." />
-        <s-select label="Default recovery language" name="defaultLang">
-          <s-option value="hi-IN">Hindi (India)</s-option>
-          <s-option value="en-IN">English (India)</s-option>
-        </s-select>
-        <s-checkbox label="Auto-start recovery on webhook" name="autoWebhook" checked />
-        <s-checkbox label="Send escalation email to team" name="escEmail" checked />
-        <s-button variant="primary">Save preferences</s-button>
+      <s-section heading="Preferences">
+        <fetcher.Form method="post">
+          <s-select
+            label="Default recovery language"
+            name="defaultLanguage"
+            value={preferences.defaultLanguage}
+          >
+            <s-option value="hi-IN">Hindi (India)</s-option>
+            <s-option value="en-IN">English (India)</s-option>
+          </s-select>
+          <s-checkbox
+            label="Auto-start recovery on webhook"
+            name="autoWebhook"
+            checked={preferences.autoWebhook || undefined}
+          />
+          <s-checkbox
+            label="Send escalation email to team"
+            name="escalationEmailEnabled"
+            checked={preferences.escalationEmailEnabled || undefined}
+          />
+          <s-button
+            type="submit"
+            variant="primary"
+            {...(busy ? { loading: true } : {})}
+          >
+            Save preferences
+          </s-button>
+        </fetcher.Form>
+        {fetcher.data?.ok ? (
+          <s-banner tone="success">
+            <s-paragraph>Preferences saved.</s-paragraph>
+          </s-banner>
+        ) : null}
       </s-section>
 
       <s-section slot="aside" heading="Danger zone (preview)">
         <s-paragraph color="subdued">
-          Disconnect AVIP from this store or purge call history — requires
-          confirmation in production.
+          Disconnect AVIP from this store — requires confirmation in production.
         </s-paragraph>
         <s-button variant="secondary" tone="critical">
           Disconnect store

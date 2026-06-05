@@ -10,7 +10,38 @@ export type AvipCallRow = {
   status: string;
   outcome?: string;
   workflowId?: string;
+  durationSeconds?: number;
   updatedAt: string;
+};
+
+export type AvipEscalationRow = {
+  id: string;
+  orderId: string;
+  reason?: string;
+  status: string;
+  assignee?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AvipPreferences = {
+  defaultLanguage: string;
+  autoWebhook: boolean;
+  escalationEmailEnabled: boolean;
+};
+
+export type AvipPrompt = {
+  systemPrompt: string;
+  updatedAt?: string;
+};
+
+export type AvipAnalytics = {
+  callsThisMonth: number;
+  totalCalls: number;
+  completedCalls: number;
+  avgDurationSeconds: number;
+  openEscalations: number;
+  recoveryRate: string;
 };
 
 function avipBase(): string {
@@ -42,6 +73,14 @@ async function avipFetch(
   });
   const text = await res.text();
   return { res, text };
+}
+
+function shopQuery(shopDomain: string, path: string, extra?: URLSearchParams) {
+  const params = new URLSearchParams({ shopDomain });
+  if (extra) {
+    for (const [k, v] of extra) params.set(k, v);
+  }
+  return `${path}?${params.toString()}`;
 }
 
 export async function triggerSimulateRto(
@@ -102,8 +141,9 @@ export async function listAvipCalls(
   shopDomain: string,
   limit = 25,
 ): Promise<AvipCallRow[]> {
-  const params = new URLSearchParams({ shopDomain, limit: String(limit) });
-  const { res, text } = await avipFetch(`/internal/calls?${params.toString()}`);
+  const { res, text } = await avipFetch(
+    shopQuery(shopDomain, "/internal/calls", new URLSearchParams({ limit: String(limit) })),
+  );
   if (!res.ok) {
     console.warn("[listAvipCalls]", text.slice(0, 200));
     return [];
@@ -116,6 +156,106 @@ export async function listAvipCalls(
   }
 }
 
+export async function listAvipEscalations(
+  shopDomain: string,
+): Promise<AvipEscalationRow[]> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/escalations"));
+  if (!res.ok) {
+    console.warn("[listAvipEscalations]", text.slice(0, 200));
+    return [];
+  }
+  try {
+    const body = JSON.parse(text) as { escalations?: AvipEscalationRow[] };
+    return body.escalations ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function resolveAvipEscalation(
+  shopDomain: string,
+  escalationId: string,
+  assignee = "merchant",
+): Promise<{ ok: boolean; error?: string }> {
+  const { res, text } = await avipFetch(
+    shopQuery(shopDomain, `/internal/escalations/${escalationId}/resolve`),
+    {
+      method: "POST",
+      body: JSON.stringify({ assignee }),
+    },
+  );
+  if (!res.ok) {
+    return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+  return { ok: true };
+}
+
+export async function getAvipPreferences(
+  shopDomain: string,
+): Promise<AvipPreferences | null> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/preferences"));
+  if (!res.ok) return null;
+  try {
+    const body = JSON.parse(text) as { preferences?: AvipPreferences };
+    return body.preferences ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveAvipPreferences(
+  shopDomain: string,
+  prefs: AvipPreferences,
+): Promise<{ ok: boolean; error?: string }> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/preferences"), {
+    method: "PUT",
+    body: JSON.stringify(prefs),
+  });
+  if (!res.ok) {
+    return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+  return { ok: true };
+}
+
+export async function getAvipPrompt(shopDomain: string): Promise<AvipPrompt | null> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/prompt"));
+  if (!res.ok) return null;
+  try {
+    const body = JSON.parse(text) as { prompt?: { systemPrompt: string }; updatedAt?: string };
+    if (!body.prompt) return null;
+    return { systemPrompt: body.prompt.systemPrompt, updatedAt: body.updatedAt };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveAvipPrompt(
+  shopDomain: string,
+  systemPrompt: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/prompt"), {
+    method: "PUT",
+    body: JSON.stringify({ systemPrompt }),
+  });
+  if (!res.ok) {
+    return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+  return { ok: true };
+}
+
+export async function getAvipAnalytics(
+  shopDomain: string,
+): Promise<AvipAnalytics | null> {
+  const { res, text } = await avipFetch(shopQuery(shopDomain, "/internal/analytics"));
+  if (!res.ok) return null;
+  try {
+    return JSON.parse(text) as AvipAnalytics;
+  } catch {
+    return null;
+  }
+}
+
 export function avipApiBaseUrl(): string {
   return avipBase();
 }
+

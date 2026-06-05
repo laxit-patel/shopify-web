@@ -13,6 +13,7 @@
     "start": "react-router-serve ./build/server/index.js",
     "setup": "prisma generate && prisma migrate deploy",
     "typecheck": "react-router typegen && tsc --noEmit",
+    "generate:avip-api": "openapi-typescript ../avip/docs/openapi.json -o app/lib/gen/avip-openapi.ts",
     "shopify": "shopify"
   },
   "type": "module",
@@ -50,6 +51,7 @@
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.25",
     "@types/react-dom": "^18.3.7",
+    "openapi-typescript": "^7.10.1",
     "typescript": "^5.4.5",
     "vite": "^6.3.6"
   }

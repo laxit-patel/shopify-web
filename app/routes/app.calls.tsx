@@ -3,6 +3,7 @@ import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { MockPreviewBanner } from "../components/MockPreviewBanner";
 import { listAvipCalls } from "../lib/avip-api.server";
+import { formatDurationSeconds } from "../lib/format";
 import { callStatusLabel, callStatusTone } from "../lib/call-status";
 import { MOCK_CALLS } from "../lib/mock-data";
 import { syncAvipShopFromAdmin } from "../lib/sync-avip-shop.server";
@@ -57,7 +58,11 @@ export default function CallsPage() {
                 </s-table-cell>
                 <s-table-cell>{c.outcome ?? "—"}</s-table-cell>
                 <s-table-cell>
-                  {"duration" in c ? (c.duration ?? "—") : "—"}
+                  {"duration" in c && c.duration
+                    ? c.duration
+                    : formatDurationSeconds(
+                        "durationSeconds" in c ? c.durationSeconds : undefined,
+                      )}
                 </s-table-cell>
                 <s-table-cell>{c.updatedAt}</s-table-cell>
               </s-table-row>

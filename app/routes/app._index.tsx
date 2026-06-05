@@ -7,10 +7,12 @@ import { useFetcher, useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   avipApiBaseUrl,
+  getAvipAnalytics,
   listAvipCalls,
   type AvipCallRow,
 } from "../lib/avip-api.server";
 import { callStatusLabel, callStatusTone } from "../lib/call-status";
+import { formatDurationSeconds } from "../lib/format";
 import { useWorkflowToast } from "../hooks/useWorkflowToast";
 import { shopifyReauthInstallUrl } from "../lib/reauth-url.server";
 import { handleOrderAction } from "../lib/order-actions.server";
@@ -32,7 +34,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       err instanceof Error ? err.message : "Could not load orders from Shopify";
   }
 
-  const calls = await listAvipCalls(shop, 25);
+  const [calls, analytics] = await Promise.all([
+    listAvipCalls(shop, 25),
+    getAvipAnalytics(shop),
+  ]);
   const callByOrder: Record<string, AvipCallRow> = {};
   for (const c of calls) {
     callByOrder[c.orderId] = c;
@@ -48,6 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     ordersError,
     calls,
     callByOrder,
+    analytics,
   };
 };
 
@@ -66,6 +72,7 @@ export default function Dashboard() {
     ordersError,
     calls,
     callByOrder,
+    analytics,
   } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const isLoading =
@@ -75,24 +82,26 @@ export default function Dashboard() {
   useWorkflowToast(fetcher.data);
 
   const stats = {
-    callsThisMonth: calls.length,
-    recoveryRate: "34%",
-    avgDuration: "2:41",
-    openEscalations: 3,
+    callsThisMonth: analytics?.callsThisMonth ?? calls.length,
+    recoveryRate: analytics?.recoveryRate ?? "—",
+    avgDuration: formatDurationSeconds(
+      Math.round(analytics?.avgDurationSeconds ?? 0),
+    ),
+    openEscalations: analytics?.openEscalations ?? 0,
   };
 
-  const kpiPreview = stats.callsThisMonth === 0;
+  const kpiPreview = !analytics;
 
   return (
     <s-page heading="Dashboard">
-      <s-banner tone="info">
-        <s-paragraph>
-          <s-text type="strong">Recent orders</s-text> and{" "}
-          <s-text type="strong">Start recovery / Simulate</s-text> use live
-          Shopify and AVIP data. KPI cards (except calls count) are placeholder
-          numbers until analytics are wired.
-        </s-paragraph>
-      </s-banner>
+      {kpiPreview ? (
+        <s-banner tone="info">
+          <s-paragraph>
+            KPI cards need the beta AVIP API (`/internal/analytics`). Recent
+            orders and recovery actions use live data.
+          </s-paragraph>
+        </s-banner>
+      ) : null}
 
       {missingScopes.length > 0 && (
         <s-banner tone="warning" heading="Finish setup">
