@@ -147,6 +147,10 @@ const config = {
         "fromEnvVar": null,
         "value": "debian-openssl-1.1.x",
         "native": true
+      },
+      {
+        "fromEnvVar": null,
+        "value": "linux-arm64-openssl-3.0.x"
       }
     ],
     "previewFeatures": [],
@@ -168,13 +172,13 @@ const config = {
   "inlineDatasources": {
     "db": {
       "url": {
-        "fromEnvVar": null,
-        "value": "file:dev.sqlite"
+        "fromEnvVar": "DATABASE_URL",
+        "value": null
       }
     }
   },
-  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider     = \"prisma-client-js\"\n  output       = \"../generated/shopify-session-client\"\n  moduleFormat = \"esm\"\n}\n\n// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long\n// enough when changing adapters.\n// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information\ndatasource db {\n  provider = \"sqlite\"\n  url      = \"file:dev.sqlite\"\n}\n\nmodel Session {\n  id                  String    @id\n  shop                String\n  state               String\n  isOnline            Boolean   @default(false)\n  scope               String?\n  expires             DateTime?\n  accessToken         String\n  userId              BigInt?\n  firstName           String?\n  lastName            String?\n  email               String?\n  accountOwner        Boolean   @default(false)\n  locale              String?\n  collaborator        Boolean?  @default(false)\n  emailVerified       Boolean?  @default(false)\n  refreshToken        String?\n  refreshTokenExpires DateTime?\n}\n",
-  "inlineSchemaHash": "205268091831e442cbf30b0c60295c3aad6490d5623a9bf4475dd7d59fa3dca2",
+  "inlineSchema": "// This is your Prisma schema file,\n// learn more about it in the docs: https://pris.ly/d/prisma-schema\n\ngenerator client {\n  provider      = \"prisma-client-js\"\n  output        = \"../generated/shopify-session-client\"\n  moduleFormat  = \"esm\"\n  binaryTargets = [\"native\", \"linux-arm64-openssl-3.0.x\"]\n}\n\n// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long\n// enough when changing adapters.\n// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information\ndatasource db {\n  provider = \"sqlite\"\n  url      = env(\"DATABASE_URL\")\n}\n\nmodel Session {\n  id                  String    @id\n  shop                String\n  state               String\n  isOnline            Boolean   @default(false)\n  scope               String?\n  expires             DateTime?\n  accessToken         String\n  userId              BigInt?\n  firstName           String?\n  lastName            String?\n  email               String?\n  accountOwner        Boolean   @default(false)\n  locale              String?\n  collaborator        Boolean?  @default(false)\n  emailVerified       Boolean?  @default(false)\n  refreshToken        String?\n  refreshTokenExpires DateTime?\n}\n",
+  "inlineSchemaHash": "0f6e61d358767e4f847f5b2ea69d636647946ecb23d28cf8a6f6e66e9cf7e0af",
   "copyEngine": true
 }
 config.dirname = '/'
@@ -185,7 +189,9 @@ config.engineWasm = undefined
 config.compilerWasm = undefined
 
 config.injectableEdgeEnv = () => ({
-  parsed: {}
+  parsed: {
+    DATABASE_URL: typeof globalThis !== 'undefined' && globalThis['DATABASE_URL'] || typeof process !== 'undefined' && process.env && process.env.DATABASE_URL || undefined
+  }
 })
 
 if (typeof globalThis !== 'undefined' && globalThis['DEBUG'] || typeof process !== 'undefined' && process.env && process.env.DEBUG || undefined) {

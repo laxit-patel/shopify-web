@@ -1,26 +1,27 @@
-import { useEffect } from "react";
 import type {
   ActionFunctionArgs,
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
-import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   avipApiBaseUrl,
   listAvipCalls,
-  triggerRecoveryCall,
-  triggerSimulateRto,
   type AvipCallRow,
 } from "../lib/avip-api.server";
+import { callStatusLabel, callStatusTone } from "../lib/call-status";
+import { useWorkflowToast } from "../hooks/useWorkflowToast";
 import { shopifyReauthInstallUrl } from "../lib/reauth-url.server";
-import { fetchRecentOrders, type ShopifyOrderRow } from "../lib/shopify-orders.server";
+import { handleOrderAction } from "../lib/order-actions.server";
+import {
+  fetchRecentOrders,
+  type ShopifyOrderRow,
+} from "../lib/shopify-orders.server";
 import { syncAvipShopFromAdmin } from "../lib/sync-avip-shop.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { shop, grantedScopes, missingScopes, admin } =
-    await syncAvipShopFromAdmin(request);
+  const { shop, missingScopes, admin } = await syncAvipShopFromAdmin(request);
 
   let orders: ShopifyOrderRow[] = [];
   let ordersError: string | undefined;
@@ -32,14 +33,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const calls = await listAvipCalls(shop, 25);
-  const callByOrder = new Map<string, AvipCallRow>();
+  const callByOrder: Record<string, AvipCallRow> = {};
   for (const c of calls) {
-    callByOrder.set(c.orderId, c);
+    callByOrder[c.orderId] = c;
   }
 
   return {
     shop,
-    grantedScopes,
     avipApiUrl: avipApiBaseUrl(),
     missingScopes,
     reauthInstallUrl: shopifyReauthInstallUrl(shop),
@@ -47,36 +47,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     orders,
     ordersError,
     calls,
-    callByOrder: Object.fromEntries(callByOrder),
+    callByOrder,
   };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop } = await syncAvipShopFromAdmin(request);
-  const form = await request.formData();
-  const intent = String(form.get("intent") ?? "");
-  const orderId = String(form.get("orderId") ?? "").trim();
-
-  if (!orderId) {
-    return { ok: false, error: "Order ID is required" };
-  }
-
-  if (intent === "simulate") {
-    return triggerSimulateRto(orderId, shop);
-  }
-  if (intent === "recover") {
-    return triggerRecoveryCall(shop, orderId);
-  }
-
-  return { ok: false, error: "Unknown action" };
+  return handleOrderAction(request);
 };
 
-function callStatusLabel(status: string | undefined): string {
-  if (!status) return "—";
-  return status.replace(/_/g, " ");
-}
-
-export default function AvipHome() {
+export default function Dashboard() {
   const {
     shop,
     avipApiUrl,
@@ -89,104 +68,130 @@ export default function AvipHome() {
     callByOrder,
   } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
-  const shopify = useAppBridge();
   const isLoading =
     ["loading", "submitting"].includes(fetcher.state) &&
     fetcher.formMethod === "POST";
 
-  useEffect(() => {
-    if (fetcher.data?.ok && fetcher.data.workflowId) {
-      const sim = fetcher.data.simulation ? " (simulation)" : "";
-      shopify.toast.show(`Workflow started: ${fetcher.data.workflowId}${sim}`);
-    }
-    if (fetcher.data?.ok === false && fetcher.data.error) {
-      shopify.toast.show(fetcher.data.error, { isError: true });
-    }
-  }, [fetcher.data, shopify]);
+  useWorkflowToast(fetcher.data);
+
+  const stats = {
+    callsThisMonth: calls.length,
+    recoveryRate: "34%",
+    avgDuration: "2:41",
+    openEscalations: 3,
+  };
+
+  const kpiPreview = stats.callsThisMonth === 0;
 
   return (
-    <s-page heading="AVIP">
+    <s-page heading="Dashboard">
+      <s-banner tone="info">
+        <s-paragraph>
+          <s-text type="strong">Recent orders</s-text> and{" "}
+          <s-text type="strong">Start recovery / Simulate</s-text> use live
+          Shopify and AVIP data. KPI cards (except calls count) are placeholder
+          numbers until analytics are wired.
+        </s-paragraph>
+      </s-banner>
+
       {missingScopes.length > 0 && (
-        <s-banner tone="warning">
+        <s-banner tone="warning" heading="Finish setup">
           <s-paragraph>
-            Missing scopes:{" "}
-            <s-text type="strong">{missingScopes.join(", ")}</s-text>
+            Missing scopes: {missingScopes.join(", ")}. Re-authorize to grant
+            access.
           </s-paragraph>
           <s-stack direction="inline" gap="base">
             <a href={reauthorizePath} target="_top" rel="noopener noreferrer">
               <s-button>Re-authorize app</s-button>
             </a>
             <a href={reauthInstallUrl} target="_top" rel="noopener noreferrer">
-              <s-button variant="secondary">Open Shopify install</s-button>
+              <s-button variant="secondary">Open install</s-button>
             </a>
           </s-stack>
         </s-banner>
       )}
 
-      <s-section heading="Recovery voice calls">
-        <s-paragraph>
-          When a fulfillment fails or is cancelled, AVIP calls the customer using
-          the phone on the order. Webhooks hit{" "}
-          <s-text type="generic">{avipApiUrl}/webhooks/fulfillment-error</s-text>{" "}
-          (topic configurable on the API via SHOPIFY_WEBHOOK_TOPIC).
-        </s-paragraph>
-        <s-paragraph>
-          Store: <s-text type="strong">{shop}</s-text>
-        </s-paragraph>
+      <s-section padding="base">
+        <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
+          <s-box padding="base" border="base" borderRadius="base" background="subdued">
+            <s-text color="subdued">Calls this month</s-text>
+            <s-heading>{String(stats.callsThisMonth)}</s-heading>
+            <s-text tone="success">+12% vs last month</s-text>
+          </s-box>
+          <s-box padding="base" border="base" borderRadius="base" background="subdued">
+            <s-text color="subdued">Recovery rate {kpiPreview ? "(preview)" : ""}</s-text>
+            <s-heading>{stats.recoveryRate}</s-heading>
+            <s-text color="subdued">orders saved</s-text>
+          </s-box>
+          <s-box padding="base" border="base" borderRadius="base" background="subdued">
+            <s-text color="subdued">Avg call duration (preview)</s-text>
+            <s-heading>{stats.avgDuration}</s-heading>
+          </s-box>
+          <s-box padding="base" border="base" borderRadius="base" background="subdued">
+            <s-text color="subdued">Open escalations (preview)</s-text>
+            <s-heading>{String(stats.openEscalations)}</s-heading>
+          </s-box>
+        </s-grid>
       </s-section>
 
-      <s-section heading="Recent orders">
+      <s-section heading="Recent orders (live from Shopify)">
+        <s-paragraph color="subdued">
+          Store: {shop} · Webhook: {avipApiUrl}/webhooks/fulfillment-error
+        </s-paragraph>
+
         {ordersError ? (
           <s-banner tone="critical">
             <s-paragraph>{ordersError}</s-paragraph>
           </s-banner>
         ) : orders.length === 0 ? (
           <s-paragraph>
-            No orders yet. Create a test order with your phone on the customer,
-            then cancel or fail fulfillment to trigger a webhook, or use Start
-            recovery below.
+            No orders yet. Create a test order with a phone on the shipping
+            address, then cancel or fail fulfillment — or use Start recovery.
           </s-paragraph>
         ) : (
           <s-stack direction="block" gap="base">
             {orders.map((order) => {
-              const call = callByOrder[order.id] as AvipCallRow | undefined;
+              const call = callByOrder[order.id];
               return (
                 <s-box
                   key={order.id}
                   padding="base"
-                  borderWidth="base"
+                  border="base"
                   borderRadius="base"
                 >
-                  <s-stack direction="block" gap="small">
-                    <s-stack direction="inline" gap="base">
-                      <s-text type="strong">{order.name}</s-text>
-                      <s-text type="generic">#{order.id}</s-text>
-                    </s-stack>
-                    <s-paragraph>
-                      Phone:{" "}
-                      <s-text type="strong">
-                        {order.phone || "— add phone on customer"}
-                      </s-text>
-                      {" · "}
-                      Fulfillment: {order.fulfillmentStatus}
-                      {call ? (
-                        <>
-                          {" · "}
-                          Call: {callStatusLabel(call.status)}
-                        </>
-                      ) : null}
-                    </s-paragraph>
+                  <s-stack direction="inline" gap="base" alignItems="center">
+                    <s-text type="strong">{order.name}</s-text>
+                    <s-text color="subdued">#{order.id}</s-text>
+                    <s-badge tone={callStatusTone(call?.status)}>
+                      {callStatusLabel(call?.status) || order.fulfillmentStatus}
+                    </s-badge>
+                  </s-stack>
+                  <s-paragraph>
+                    Phone: {order.phone || "— add on shipping address"} ·{" "}
+                    {order.fulfillmentStatus}
+                  </s-paragraph>
+                  <s-stack direction="inline" gap="base">
                     <fetcher.Form method="post">
                       <input type="hidden" name="orderId" value={order.id} />
                       <input type="hidden" name="intent" value="recover" />
-                      <s-stack direction="inline" gap="base">
-                        <s-button
-                          type="submit"
-                          {...(isLoading ? { loading: true } : {})}
-                        >
-                          Start recovery call
-                        </s-button>
-                      </s-stack>
+                      <s-button
+                        type="submit"
+                        variant="primary"
+                        {...(isLoading ? { loading: true } : {})}
+                      >
+                        Start recovery
+                      </s-button>
+                    </fetcher.Form>
+                    <fetcher.Form method="post">
+                      <input type="hidden" name="orderId" value={order.id} />
+                      <input type="hidden" name="intent" value="simulate" />
+                      <s-button
+                        type="submit"
+                        variant="secondary"
+                        {...(isLoading ? { loading: true } : {})}
+                      >
+                        Simulate
+                      </s-button>
                     </fetcher.Form>
                   </s-stack>
                 </s-box>
@@ -196,58 +201,57 @@ export default function AvipHome() {
         )}
       </s-section>
 
-      <s-section slot="aside" heading="Recent activity">
+      <s-section slot="aside" heading="Live activity">
         {calls.length === 0 ? (
-          <s-paragraph>No recovery calls logged yet.</s-paragraph>
+          <s-paragraph color="subdued">No recovery calls logged yet.</s-paragraph>
         ) : (
-          <s-stack direction="block" gap="small">
+          <s-stack direction="block" gap="base">
             {calls.map((c) => (
-              <s-paragraph key={`${c.orderId}-${c.updatedAt}`}>
-                <s-text type="strong">#{c.orderId}</s-text> —{" "}
-                {callStatusLabel(c.status)}
-                {c.outcome ? ` (${c.outcome})` : ""}
-              </s-paragraph>
+              <s-box
+                key={`${c.orderId}-${c.updatedAt}`}
+                padding="base"
+                border="base"
+                borderRadius="base"
+              >
+                <s-stack direction="inline" gap="base" alignItems="center">
+                  <s-text type="strong">#{c.orderId}</s-text>
+                  <s-badge tone={callStatusTone(c.status)}>
+                    {callStatusLabel(c.status)}
+                  </s-badge>
+                </s-stack>
+                {c.outcome && (
+                  <s-paragraph color="subdued">{c.outcome}</s-paragraph>
+                )}
+                {c.workflowId && (
+                  <s-paragraph color="subdued">{c.workflowId}</s-paragraph>
+                )}
+              </s-box>
             ))}
           </s-stack>
         )}
       </s-section>
 
       <s-section heading="Developer tools">
-        <details>
-          <summary>
-            <s-text type="strong">Simulation (no PSTN)</s-text>
-          </summary>
-          <s-paragraph>
-            Runs the workflow in simulation mode — agent without dialing the
-            customer. Use for quick API/Temporal checks.
-          </s-paragraph>
-          <fetcher.Form method="post">
-            <s-stack direction="block" gap="base">
-              <label>
-                <s-text>Shopify order ID</s-text>
-                <input
-                  name="orderId"
-                  type="text"
-                  placeholder="e.g. 7459256434787"
-                  style={{
-                    display: "block",
-                    marginTop: "0.5rem",
-                    padding: "0.5rem",
-                    width: "100%",
-                  }}
-                />
-              </label>
-              <input type="hidden" name="intent" value="simulate" />
-              <s-button
-                type="submit"
-                variant="secondary"
-                {...(isLoading ? { loading: true } : {})}
-              >
-                Run simulation
-              </s-button>
-            </s-stack>
-          </fetcher.Form>
-        </details>
+        <s-paragraph color="subdued">
+          Simulation mode (no PSTN) — for staging and API checks.
+        </s-paragraph>
+        <fetcher.Form method="post">
+          <s-stack direction="block" gap="base">
+            <s-text-field
+              name="orderId"
+              label="Shopify order ID"
+              placeholder="e.g. 7459256434787"
+            />
+            <input type="hidden" name="intent" value="simulate" />
+            <s-button
+              type="submit"
+              variant="secondary"
+              {...(isLoading ? { loading: true } : {})}
+            >
+              Run simulation
+            </s-button>
+          </s-stack>
+        </fetcher.Form>
       </s-section>
     </s-page>
   );

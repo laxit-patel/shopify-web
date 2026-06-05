@@ -14,11 +14,10 @@ const ORDERS_QUERY = `#graphql
         name
         createdAt
         displayFulfillmentStatus
-        customer {
-          displayName
+        shippingAddress {
           phone
         }
-        shippingAddress {
+        billingAddress {
           phone
         }
       }
@@ -46,8 +45,8 @@ export async function fetchRecentOrders(
           name: string;
           createdAt: string;
           displayFulfillmentStatus: string;
-          customer?: { displayName?: string; phone?: string } | null;
           shippingAddress?: { phone?: string } | null;
+          billingAddress?: { phone?: string } | null;
         }>;
       };
     };
@@ -62,7 +61,7 @@ export async function fetchRecentOrders(
   return nodes.map((o) => ({
     id: o.legacyResourceId,
     name: o.name,
-    phone: (o.customer?.phone ?? o.shippingAddress?.phone ?? "").trim(),
+    phone: (o.shippingAddress?.phone ?? o.billingAddress?.phone ?? "").trim(),
     fulfillmentStatus: o.displayFulfillmentStatus ?? "—",
     createdAt: o.createdAt,
   }));

@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AVIP — App shell mock (static)</title>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --panel: #ffffff;
+        --text: #0f172a;
+        --muted: #64748b;
+        --border: #e2e8f0;
+        --shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+        --accent: #4f46e5;
+        --accent-2: #7c3aed;
+        --danger: #dc2626;
+        --success: #16a34a;
+        --warn: #d97706;
+        --radius: 14px;
+        --nav-w: 220px;
+      }
+
+      [data-theme="dark"] {
+        --bg: #0b1220;
+        --panel: #0f1a2e;
+        --text: #e5e7eb;
+        --muted: #9aa4b2;
+        --border: #223047;
+        --shadow: 0 12px 38px rgba(0, 0, 0, 0.35);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      /* ── App shell ───────────────────────────────────────── */
+      .shell {
+        display: grid;
+        grid-template-columns: var(--nav-w) 1fr;
+        min-height: 100vh;
+      }
+      @media (max-width: 900px) {
+        .shell { grid-template-columns: 1fr; }
+        .nav { display: none; }
+        .nav-mobile { display: flex !important; }
+      }
+
+      .nav {
+        background: var(--panel);
+        border-right: 1px solid var(--border);
+        padding: 16px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .nav-brand {
+        padding: 8px 10px 16px;
+        border-bottom: 1px solid var(--border);
+        margin-bottom: 8px;
+      }
+      .nav-brand strong { font-size: 16px; }
+      .nav-brand span { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+        width: 100%;
+      }
+      .nav-item:hover { background: rgba(79, 70, 229, 0.08); }
+      .nav-item.active {
+        background: linear-gradient(135deg, rgba(79,70,229,.14), rgba(124,58,237,.10));
+        color: var(--accent);
+      }
+      .nav-item .icon { width: 18px; text-align: center; opacity: .7; }
+      .nav-section {
+        margin-top: 12px;
+        padding: 6px 12px 4px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .nav-spacer { flex: 1; }
+
+      .main { display: flex; flex-direction: column; min-width: 0; }
+      .nav-mobile {
+        display: none;
+        gap: 6px;
+        padding: 10px 16px;
+        overflow-x: auto;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+      }
+      .nav-mobile button {
+        white-space: nowrap;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .nav-mobile button.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: transparent;
+      }
+
+      /* ── Top bar ─────────────────────────────────────────── */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 20px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .topbar h1 { margin: 0; font-size: 18px; }
+      .topbar .crumb { color: var(--muted); font-size: 12px; font-weight: 600; }
+      .topbar-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 11.5px;
+        font-weight: 700;
+        background: rgba(124, 58, 237, 0.06);
+      }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+      .plan-pill { background: rgba(79, 70, 229, 0.12); border-color: rgba(79, 70, 229, 0.25); color: var(--accent); }
+
+      .content { padding: 20px; flex: 1; }
+
+      /* ── Shared components ───────────────────────────────── */
+      .banner {
+        padding: 12px 14px;
+        border-radius: var(--radius);
+        border: 1px solid rgba(217, 119, 6, 0.35);
+        background: rgba(217, 119, 6, 0.1);
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+      .banner strong { display: block; margin-bottom: 4px; }
+      .banner-actions { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      @media (max-width: 800px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+      .stat {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 14px;
+        box-shadow: var(--shadow);
+      }
+      .stat .label { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+      .stat .value { font-size: 22px; font-weight: 900; margin-top: 4px; }
+      .stat .delta { font-size: 11px; color: var(--success); margin-top: 2px; }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.4fr 0.6fr;
+        gap: 16px;
+      }
+      @media (max-width: 980px) { .grid-2 { grid-template-columns: 1fr; } }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+      }
+
+      button {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 12.5px;
+        cursor: pointer;
+      }
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border-color: transparent;
+        color: #fff;
+      }
+      button.ghost { background: transparent; }
+      button.danger { color: var(--danger); border-color: rgba(220,38,38,.35); }
+
+      .muted { color: var(--muted); font-size: 13px; line-height: 1.4; }
+      .hr { height: 1px; background: var(--border); margin: 12px 0; }
+
+      .order-item, .activity-item, .table-row {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 8px;
+        background: rgba(79, 70, 229, 0.02);
+      }
+      .row-between { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .badge {
+        padding: 4px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        border: 1px solid var(--border);
+        color: var(--muted);
+      }
+      .badge.ok { color: var(--success); border-color: rgba(22,163,74,.35); background: rgba(22,163,74,.1); }
+      .badge.warn { color: var(--warn); border-color: rgba(217,119,6,.35); background: rgba(217,119,6,.1); }
+
+      .usage-bar {
+        height: 8px;
+        border-radius: 999px;
+        background: var(--border);
+        overflow: hidden;
+        margin: 8px 0;
+      }
+      .usage-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-2));
+        border-radius: 999px;
+      }
+
+      .view { display: none; }
+      .view.active { display: block; }
+
+      .checklist { list-style: none; padding: 0; margin: 0; }
+      .checklist li {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .checklist li:last-child { border-bottom: none; }
+      .check-done { color: var(--success); }
+      .check-todo { color: var(--muted); }
+
+      .form-row { margin-bottom: 14px; }
+      .form-row label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+      .form-row input, .form-row select, .form-row textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--bg);
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .ia-note {
+        margin-top: 20px;
+        padding: 14px;
+        border-radius: var(--radius);
+        border: 1px dashed var(--border);
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .ia-note strong { color: var(--text); }
+    </style>
+  </head>
+  <body data-theme="dark">
+    <div class="shell">
+      <!-- Left nav: in Shopify this becomes App Bridge nav / React Router routes -->
+      <nav class="nav" aria-label="AVIP">
+        <div class="nav-brand">
+          <strong>AVIP</strong>
+          <span>Recovery voice</span>
+        </div>
+
+        <div class="nav-section">Operations</div>
+        <button class="nav-item active" data-view="dashboard"><span class="icon">◉</span> Dashboard</button>
+        <button class="nav-item" data-view="calls"><span class="icon">☎</span> Calls</button>
+        <button class="nav-item" data-view="escalations"><span class="icon">⚑</span> Escalations</button>
+
+        <div class="nav-section">Configuration</div>
+        <button class="nav-item" data-view="voice"><span class="icon">🎙</span> Voice & prompts</button>
+        <button class="nav-item" data-view="webhooks"><span class="icon">⚡</span> Triggers & webhooks</button>
+
+        <div class="nav-section">Account</div>
+        <button class="nav-item" data-view="team"><span class="icon">👥</span> Team</button>
+        <button class="nav-item" data-view="billing"><span class="icon">💳</span> Plan & billing</button>
+        <button class="nav-item" data-view="settings"><span class="icon">⚙</span> Settings</button>
+
+        <div class="nav-spacer"></div>
+        <button class="nav-item" id="btnTheme"><span class="icon">◐</span> Toggle theme</button>
+      </nav>
+
+      <div class="main">
+        <div class="nav-mobile" id="navMobile"></div>
+
+        <header class="topbar">
+          <div>
+            <div class="crumb" id="crumb">Operations</div>
+            <h1 id="pageTitle">Dashboard</h1>
+          </div>
+          <div class="topbar-right">
+            <span class="pill plan-pill" id="planPill">Growth · 847 / 2,000 calls</span>
+            <span class="pill"><span class="dot"></span> avip-store-ioj9xku3</span>
+            <button class="ghost" id="btnUserMenu">Admin ▾</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <!-- Onboarding (first visit) -->
+          <div class="banner" id="onboardingBanner">
+            <strong>Finish setup (3 of 5)</strong>
+            Connect store ✓ · Grant scopes · Register webhook · Add test order with phone · Choose plan
+            <div class="banner-actions">
+              <button class="primary" onclick="go('webhooks')">Fix webhook</button>
+              <button class="ghost" onclick="document.getElementById('onboardingBanner').style.display='none'">Dismiss</button>
+            </div>
+          </div>
+
+          <!-- ── DASHBOARD ─────────────────────────────────── -->
+          <section class="view active" id="view-dashboard">
+            <div class="stats">
+              <div class="stat"><div class="label">Calls this month</div><div class="value">847</div><div class="delta">+12% vs last month</div></div>
+              <div class="stat"><div class="label">Recovery rate</div><div class="value">34%</div><div class="delta">orders saved</div></div>
+              <div class="stat"><div class="label">Avg call duration</div><div class="value">2:41</div></div>
+              <div class="stat"><div class="label">Open escalations</div><div class="value">3</div></div>
+            </div>
+
+            <div class="grid-2">
+              <div class="card">
+                <h2>Recent orders</h2>
+                <div id="orderList"></div>
+              </div>
+              <div class="card">
+                <h2>Live activity</h2>
+                <div id="activityList"></div>
+              </div>
+            </div>
+
+            <details style="margin-top:14px" class="card">
+              <summary style="cursor:pointer;font-weight:800">Developer tools</summary>
+              <p class="muted">Simulation (no PSTN), manual order ID — staging/dev only.</p>
+            </details>
+          </section>
+
+          <!-- ── CALLS (full history) ──────────────────────── -->
+          <section class="view" id="view-calls">
+            <div class="card">
+              <div class="row-between" style="margin-bottom:12px">
+                <h2 style="margin:0">All recovery calls</h2>
+                <div style="display:flex;gap:8px">
+                  <select><option>Last 30 days</option><option>Last 7 days</option></select>
+                  <select><option>All statuses</option><option>Completed</option><option>In call</option></select>
+                </div>
+              </div>
+              <div class="table-row row-between">
+                <div><strong>#1042</strong> · +91 98765 43210<br><span class="muted">Outcome: address confirmed · 2:18</span></div>
+                <span class="badge ok">completed</span>
+              </div>
+              <div class="table-row row-between">
+                <div><strong>#1039</strong> · +91 90000 22222<br><span class="muted">Outcome: reschedule requested</span></div>
+                <span class="badge ok">completed</span>
+              </div>
+              <div class="table-row row-between">
+                <div><strong>#1037</strong> · no phone on order<br><span class="muted">Failed before dial</span></div>
+                <span class="badge warn">cancelled</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── ESCALATIONS ───────────────────────────────── -->
+          <section class="view" id="view-escalations">
+            <div class="card">
+              <h2>Human handoff queue</h2>
+              <p class="muted">When the agent escalates, your team gets notified. Assign owners in Team.</p>
+              <div class="table-row row-between">
+                <div><strong>#1040</strong> — customer asked for manager<br><span class="muted">2h ago · unassigned</span></div>
+                <button class="primary">Assign to me</button>
+              </div>
+              <div class="table-row row-between">
+                <div><strong>#1035</strong> — language not supported<br><span class="muted">Yesterday · Priya</span></div>
+                <span class="badge ok">resolved</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── VOICE & PROMPTS ─────────────────────────────── -->
+          <section class="view" id="view-voice">
+            <div class="grid-2">
+              <div class="card">
+                <h2>Default system prompt</h2>
+                <div class="form-row">
+                  <label>Recovery agent instructions</label>
+                  <textarea rows="6">You are an RTO recovery agent. Speak clearly in the customer's language. Confirm address, ask why delivery failed, offer reschedule.</textarea>
+                </div>
+                <button class="primary">Save prompt</button>
+              </div>
+              <div class="card">
+                <h2>Voice settings</h2>
+                <div class="form-row"><label>Default language</label><select><option>hi-IN</option><option>en-IN</option></select></div>
+                <div class="form-row"><label>Max call duration</label><input type="text" value="30 minutes" /></div>
+                <p class="muted">Maps to <code>prompt_profiles</code> + agent config in avip backend.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── WEBHOOKS / TRIGGERS ─────────────────────────── -->
+          <section class="view" id="view-webhooks">
+            <div class="card">
+              <h2>Automatic triggers</h2>
+              <div class="form-row">
+                <label>Shopify webhook topic</label>
+                <select>
+                  <option>fulfillment_orders/cancelled</option>
+                  <option>fulfillment_orders/cancellation_request_submitted</option>
+                  <option>orders/fulfilled</option>
+                </select>
+              </div>
+              <p class="muted">Endpoint: <code>https://3-111-61-150.sslip.io/webhooks/fulfillment-error</code></p>
+              <div class="row-between" style="margin-top:12px">
+                <span class="badge ok">Registered on install</span>
+                <button class="primary">Re-register webhook</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── TEAM ──────────────────────────────────────── -->
+          <section class="view" id="view-team">
+            <div class="card">
+              <div class="row-between" style="margin-bottom:12px">
+                <h2 style="margin:0">Team & notifications</h2>
+                <button class="primary">Invite member</button>
+              </div>
+              <p class="muted">
+                <strong>Note:</strong> Shopify staff already log in via Admin. AVIP team is for
+                escalation emails/SMS, billing contacts, and optional non-Shopify users later.
+              </p>
+              <div class="table-row row-between">
+                <div><strong>You (owner)</strong><br><span class="muted">admin@vedanova.com · all alerts</span></div>
+                <span class="badge ok">owner</span>
+              </div>
+              <div class="table-row row-between">
+                <div><strong>Ops lead</strong><br><span class="muted">ops@store.com · escalations only</span></div>
+                <span class="badge">member</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── BILLING ───────────────────────────────────── -->
+          <section class="view" id="view-billing">
+            <div class="grid-2">
+              <div class="card">
+                <h2>Current plan</h2>
+                <p style="font-size:22px;font-weight:900;margin:0 0 8px">Growth — ₹4,999/mo</p>
+                <p class="muted">2,000 recovery calls / month · 3 seats · priority support</p>
+                <div class="usage-bar"><span style="width:42%"></span></div>
+                <p class="muted">847 of 2,000 calls used this billing period</p>
+                <div style="display:flex;gap:8px;margin-top:12px">
+                  <button class="primary">Upgrade plan</button>
+                  <button>Manage payment</button>
+                </div>
+                <p class="muted" style="margin-top:12px">Prod: Shopify Billing API or Stripe Customer Portal.</p>
+              </div>
+              <div class="card">
+                <h2>Usage breakdown</h2>
+                <div class="stat" style="box-shadow:none;margin-bottom:8px"><div class="label">PSTN minutes</div><div class="value">1,204</div></div>
+                <div class="stat" style="box-shadow:none;margin-bottom:8px"><div class="label">Simulations</div><div class="value">56</div></div>
+                <div class="stat" style="box-shadow:none"><div class="label">Overage</div><div class="value">₹0</div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ── SETTINGS ──────────────────────────────────── -->
+          <section class="view" id="view-settings">
+            <div class="grid-2">
+              <div class="card">
+                <h2>Store connection</h2>
+                <ul class="checklist">
+                  <li><span class="check-done">✓</span> OAuth connected</li>
+                  <li><span class="check-done">✓</span> read_orders, read_fulfillments</li>
+                  <li><span class="check-todo">○</span> read_customers (needed for order phone in some stores)</li>
+                </ul>
+                <button class="primary" style="margin-top:10px">Re-authorize app</button>
+              </div>
+              <div class="card">
+                <h2>Preferences</h2>
+                <div class="form-row"><label>Timezone</label><select><option>Asia/Kolkata</option></select></div>
+                <div class="form-row"><label>Staging: simulation default</label><select><option>Off (real PSTN)</option><option>On</option></select></div>
+                <button class="danger">Disconnect store</button>
+              </div>
+            </div>
+          </section>
+
+          <div class="ia-note">
+            <strong>IA map for Shopify embedded app</strong><br>
+            Routes: <code>/app</code> (dashboard), <code>/app/calls</code>, <code>/app/escalations</code>,
+            <code>/app/voice</code>, <code>/app/webhooks</code>, <code>/app/team</code>, <code>/app/billing</code>, <code>/app/settings</code>.
+            Nav can be App Bridge menu or left rail inside iframe. Billing often links out to Shopify charge approval.
+            Team may stay lightweight until you need non-Shopify users.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const views = {
+        dashboard: { title: "Dashboard", crumb: "Operations" },
+        calls: { title: "Calls", crumb: "Operations" },
+        escalations: { title: "Escalations", crumb: "Operations" },
+        voice: { title: "Voice & prompts", crumb: "Configuration" },
+        webhooks: { title: "Triggers & webhooks", crumb: "Configuration" },
+        team: { title: "Team", crumb: "Account" },
+        billing: { title: "Plan & billing", crumb: "Account" },
+        settings: { title: "Settings", crumb: "Account" },
+      };
+
+      const mockOrders = [
+        { id: "7459256434797", name: "#1042", phone: "+91 98765 43210", fulfillment: "Cancelled" },
+        { id: "7459256434808", name: "#1043", phone: "+91 99999 11111", fulfillment: "Delivery failed" },
+        { id: "7459256434819", name: "#1044", phone: "—", fulfillment: "Undelivered" },
+      ];
+      const mockActivity = [];
+
+      function go(id) {
+        document.querySelectorAll(".nav-item[data-view]").forEach((el) => {
+          el.classList.toggle("active", el.dataset.view === id);
+        });
+        document.querySelectorAll(".view").forEach((el) => el.classList.remove("active"));
+        document.getElementById("view-" + id)?.classList.add("active");
+        document.getElementById("pageTitle").textContent = views[id].title;
+        document.getElementById("crumb").textContent = views[id].crumb;
+        document.querySelectorAll("#navMobile button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.view === id);
+        });
+      }
+
+      document.querySelectorAll(".nav-item[data-view]").forEach((btn) => {
+        btn.onclick = () => go(btn.dataset.view);
+      });
+
+      const navMobile = document.getElementById("navMobile");
+      Object.keys(views).forEach((id) => {
+        const b = document.createElement("button");
+        b.textContent = views[id].title;
+        b.dataset.view = id;
+        b.onclick = () => go(id);
+        navMobile.appendChild(b);
+      });
+
+      document.getElementById("btnTheme").onclick = () => {
+        const b = document.body;
+        b.dataset.theme = b.dataset.theme === "dark" ? "light" : "dark";
+      };
+
+      function renderOrders() {
+        const el = document.getElementById("orderList");
+        el.innerHTML = mockOrders.map((o) => `
+          <div class="order-item">
+            <div class="row-between">
+              <div><strong>${o.name}</strong> <span class="muted">#${o.id}</span></div>
+              <span class="badge">${o.fulfillment}</span>
+            </div>
+            <p class="muted" style="margin:6px 0">Phone: ${o.phone}</p>
+            <div style="display:flex;gap:8px">
+              <button class="primary" onclick="startRecovery('${o.id}','${o.name}')">Start recovery</button>
+              <button onclick="startSim('${o.id}','${o.name}')">Simulate</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderActivity() {
+        const el = document.getElementById("activityList");
+        if (!mockActivity.length) {
+          el.innerHTML = '<p class="muted">No activity yet.</p>';
+          return;
+        }
+        el.innerHTML = mockActivity.slice(0, 5).map((a) => `
+          <div class="activity-item row-between">
+            <div><strong>${a.name}</strong><br><span class="muted">${a.wf}</span></div>
+            <span class="badge ok">${a.status}</span>
+          </div>
+        `).join("");
+      }
+
+      function startRecovery(id, name) {
+        mockActivity.unshift({ name, wf: "call-" + id, status: "dispatching" });
+        renderActivity();
+        setTimeout(() => { mockActivity[0].status = "completed"; renderActivity(); }, 1500);
+      }
+      function startSim(id, name) {
+        mockActivity.unshift({ name, wf: "sim-" + id, status: "simulated" });
+        renderActivity();
+      }
+
+      renderOrders();
+      renderActivity();
+    </script>
+  </body>
+</html>
