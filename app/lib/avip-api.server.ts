@@ -112,6 +112,45 @@ export async function triggerSimulateRto(
   }
 }
 
+export type CustomRecoveryInput = {
+  orderId: string;
+  objective?: string;
+  language?: string;
+  systemPrompt?: string;
+  customerPhone?: string;
+  simulation?: boolean;
+};
+
+export async function triggerCustomRecovery(
+  shopDomain: string,
+  input: CustomRecoveryInput,
+): Promise<SimulateRtoResult> {
+  const { res, text } = await avipFetch("/internal/calls/trigger", {
+    method: "POST",
+    body: JSON.stringify({
+      shopDomain,
+      orderId: input.orderId,
+      simulation: input.simulation ?? false,
+      source: "custom-recovery",
+      objective: input.objective || "get_reason",
+      language: input.language,
+      systemPrompt: input.systemPrompt,
+      customerPhone: input.customerPhone,
+      forceNew: true,
+    }),
+  });
+  let body: SimulateRtoResult & { error?: string };
+  try {
+    body = JSON.parse(text) as SimulateRtoResult & { error?: string };
+  } catch {
+    return { ok: false, error: text.slice(0, 200) || `HTTP ${res.status}` };
+  }
+  if (!res.ok) {
+    return { ok: false, error: body.error ?? `HTTP ${res.status}` };
+  }
+  return body;
+}
+
 export async function triggerRecoveryCall(
   shopDomain: string,
   orderId: string,

@@ -18,6 +18,8 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
+        <s-link href="/app">Dashboard</s-link>
+        <s-link href="/app/recover">Custom recovery</s-link>
         <s-link href="/app/calls">Calls</s-link>
         <s-link href="/app/escalations">Escalations</s-link>
         <s-link href="/app/voice">Voice &amp; prompts</s-link>
