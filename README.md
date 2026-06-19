@@ -1,5 +1,8 @@
 # @avip/shopify-web
 
+> **Superseded — reference only.** Active development moved to **[avip-shopify](https://github.com/laxit-patel/avip-shopify)** (backend: **[avip-platform](https://github.com/laxit-patel/avip-platform)**).  
+> See [migration plan](https://github.com/laxit-patel/avip-platform/blob/main/docs/MIGRATION_PLAN.md).
+
 Embedded Shopify admin app (React Router + Shopify CLI). Merchant dashboard for AVIP: install via CLI, test simulation, later billing and call history.
 
 ## Prerequisites
